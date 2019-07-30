@@ -1,0 +1,373 @@
+---
+title: "Stats_Final_Project"
+output: word_document
+---
+
+```{r}
+library(XML)
+library(dplyr)
+library(rvest)
+library(tidyr)
+library(reshape)
+library(car)
+library(leaps)
+library(HH)
+
+ProjectData = read.csv("RegressionData.csv")[,c(2:11 )]
+attach(ProjectData)
+ProjectData[is.na(ProjectData)] = 0
+
+#Numeric and Graphical Summaries for Important Variables
+#Verification of Model Assumptions
+summary(ProjectData)
+boxplot(ProjectData)
+
+```
+##Numerical and Graphical Distributions of each Variable
+The mean value for geothermal energy was the lowest by a significant amount, at only 4191.6.  Solar energy and waste has similar mean values at around 10000-11000. Wind and wood had the next highest mean values around 42000. GDP, electricity and an natural gas were all in a similar range of values from 250,000 to around 570,000.  Then, fossil fuels have the largest mean values by far at around 1,600,000.  Examining the individual box plots for each variable, we see most of them take on the same shape, skewed towards the bottom with a wider variance at the 3rd and 4th quartiles, and outliers on the larger valued end. It looks like there could be significant outliers for each of the variables. 
+
+Means:
+
+Electricity :   255973 
+
+FF:            1573725
+
+Geo:              4191
+
+NG:             569370
+
+Solar:           11367.4
+
+Wood:            42624
+
+Waste:           10049
+
+Wind:            41911.9
+
+GDP:            325374
+
+Electricity follows a moderate, linear, positive relationship with GDP. At the top right end the relationship gets weaker and there are fewer high valued data points.
+Fossil fuels also follow a moderate positive linear relationship with GDP.  There looks like there is at least one outlier for this variable.
+There does not appear to be a significant relationship between geothermal energy and GDP.  The values for geothermal are clustered around very small values, while the GDP varies.  There is definitely an outlier in the top right corner. It may be possible to explore the relationship between these two variables better without the outlier.
+Natural gas follws a positive, moderate linear relationship with GDP. There appears to be at least one outlier. 
+Solar energy and GDP also have a very weak but positive relationship, much like the situation with geothermal energy.  There is definitely an outlier.
+Wood and GDP have a very weak positive linear relationship. 
+Waste and GDP have a moderate to weak positive linear relationship. There are more data points clustered around smaller values.
+Wind and GDP have a weak relationship that appears to be positive but this might only be because of outliers.
+
+
+
+##Boxplots
+
+```{r}
+boxplot(ProjectData$Electricity, xlab = "Electricity", ylab = "Billion btu")
+boxplot(ProjectData$Fossil.Fuel, xlab = "Fossil Fuel", ylab = "Billion btu")
+boxplot(ProjectData$Geothermal, xlab = "Geothermal", ylab = "Billion btu")
+boxplot(ProjectData$Natural.Gas, xlab = "Natural Gas", ylab = "Billion btu")
+boxplot(ProjectData$Solar, xlab = "Solar", ylab = "Billion btu")
+boxplot(ProjectData$Wood, xlab = "Wood", ylab = "Billion btu")
+boxplot(ProjectData$Waste, xlab = "Waste", ylab = "Billion btu")
+boxplot(ProjectData$Wind, xlab = "Wind", ylab = "Billion btu")
+boxplot(ProjectData$GDP, xlab = "Real GDP", ylab = "Millions chained (2009) $")
+#Each plot is skewed to the right with 3-4 outliers
+
+
+
+# Indpendence can be assumed (State data is measured independently from one another)
+
+
+
+
+plot( GDP ~., data = ProjectData)
+
+```
+
+Then, we took the log of the GDP value to explore the relationships this way. 
+We see a stronger relationship between electricity and GDP now, it is still positive and follows a logarithmic curve. There do not appear to be any outliers.
+Fossil fuel and GDP have a stronger relationship that follows a positive logarithmic curve. There may be some outliers still but they look less significant.
+We can see the data points comparing geothermal energy and GDP better but there still is not evidence of a very strong relationship between the two variables. There are also points that still look like they could be outliers. 
+Natural gas has a moderate logarithmic relationship with GDP now.  There are still some points that could be outliers. 
+Solar energy still is in the same situation as geothermal energy where there does not appear to be a strong relationship, and there is at least one point that is a significant outlier.
+Wood has a very weak relationship with GDP, it appears to be positive but not strongly.
+Waste has a stronger relationship with GDP, it is moderate, logarithmic and positive. 
+Wind has a very weak but positive relationship with GDP with a few points that look like outliers and could be causing this seemingly positive relationship. 
+
+```{r new}
+plot( log(GDP) ~., data = ProjectData[,-1])
+
+
+ProjectDatalog = sapply( ProjectData[,-1], function(x) log(x))
+ProjectDatalog[is.infinite(ProjectDatalog)] = 0
+ProjectDatalog = cbind(State, data.frame(ProjectDatalog))
+plot( GDP ~., data = ProjectDatalog)
+#Log Plots, except for wind, show better linearity!
+#Log Plots are better. 
+#Wind seems like there is no linearity, but that's only because there are some states with no
+#Wind energy consumption. Remove all the zeros and we can still witness a weak, positive, linear relationship
+```
+
+
+Coefficient Tables and Anova Tables for the Log Fit of the Data
+Add Interpreatations of the Coefficient and Anova Tables here
+
+
+The resulting equation is:
+GDP = 1.624169 + .517387Electricity + .091604Fossil.Fuel - .026904Geothermal + .099555Natural.Gas + .116452Solar -.023263Wood + .141732Waste + .025245Wind
+This means that for every one unit increase in a given type of energy, there is an increase in GDP corresponding to each of the coefficients in front of the energy type.  For example, a one unit increase in Electricity results in an increase of .517387 units of GDP.
+
+```{r}
+
+
+logfit = lm( GDP ~., data = ProjectDatalog[,-1])
+summary(logfit)
+anova(logfit)
+
+
+```
+Electricity, Solar, Waste, and Wind are statistically significant here.
+
+From this linear regression without any further analysis, we see that Electricity, Fossil Fuels, Natural Gas, Solar consumptions are statistically significant, while Geothermal, Wood, Waste, and Wind consumption do not seem to be statistically significant.
+
+
+##Multiple Linear Regression Tests For LogFit
+
+##Assumptions: 
+
+Linearity Assumption: Scatter Plots, except for wind, satisfy the straight enough condition.
+
+Normality Assumption: the points in Normal QQ Plot all fall along the line mostly, satisfying the normality assumption.
+
+Equal Variance:  The residuals are all scattered around 0 within a horizontal band, satisfying the equal variance assumption. 
+
+```{r}
+#log fit follows equal variance condition better, random scatter along horizontal band at zero
+plot(logfit$fitted.values, logfit$residuals,ylab="residuals", xlab="fitted y", main="Residual plot")
+abline(0,0)
+
+#Normality Assumption
+qqnorm(logfit$residuals)
+qqline(logfit$residuals)
+#So can we stick to using the log plot because these better fit the regression conditions?
+
+anova(logfit)
+
+vif(logfit)
+
+summary( lm( GDP ~., data = dplyr::select(ProjectDatalog[,-1], -Natural.Gas)) )
+summary( lm( GDP ~., data = dplyr::select(ProjectDatalog[,-1], -Electricity)) )
+summary( lm( GDP ~., data = dplyr::select(ProjectDatalog[,-1], -Fossil.Fuel)) )
+#Removing Fossil Fuels maintains the highest R^2
+```
+
+##VIF Multicolinearity Tests for Fit and LogFit:
+The VIF for electricity, fossil fuel, and natural gas are all larger than 5, suggesting some degree of multicollinearity between them. 
+First we fit a model without natural gas, then without electricity, then without fossil fuels, and we compare the adjusted R^2 values to decide which model to use.
+Removing fossil fuels results in the highest adjusted R^2 value suggesting that we should use that model. 
+           
+           
+##Variable Selection: Removing Fossil Fuel and Natural Gas
+We continue with the model without fossil fuel and explore the VIF of the variables now. Electricity still has a VIF value greater than 5.  We try fitting themodel without natural gas and fossil fuel and then without electricity and fossil fuel.  The model without natural gas and fossil fuel results in a higher adjusted R^2 value so we should remove those variables and use that model.
+
+Then, we check interaction terms using the step AIC method. The new model selected uses interaction between solar and waste, wood and wind, geothermal energy and wind, and electricity and solar power. However, the interaction terms cause a lot of multicollinearity for all of the variables. 
+
+
+
+```{r}
+
+logfitTwo = lm( GDP ~., data = dplyr::select(data.frame(ProjectDatalog[,-1]), -Fossil.Fuel)) 
+vif(logfitTwo)
+#Electricity still has a high VIF
+summary( lm( GDP ~., data = dplyr::select(ProjectDatalog[,-1], c(-Fossil.Fuel,-Natural.Gas)) ))
+summary( lm( GDP ~., data = dplyr::select(ProjectDatalog[,-1], c(-Fossil.Fuel,-Electricity))) )
+
+#We should remove Fossil.Fuel and Natural.Gas
+
+dataPostCollinearity = dplyr::select(ProjectDatalog, c(-Fossil.Fuel,-Natural.Gas)) 
+logFitThree = lm( GDP ~., data = dataPostCollinearity[,-1] )
+vif(logFitThree)
+
+# Checking the Interaction Terms now
+
+newmodel<- stepAIC(logFitThree, scope=list(upper= ~Electricity * Geothermal * Solar * Wood * Waste * Wind, lower= ~1))
+summary(newmodel)
+vif(newmodel)
+# There are no interaction terms so it causes multicollinearity 
+```
+
+Then we look at the all subsets regression. 
+The model with the largest adjusted R squared value is model 4 which uses electricity, solar, waste and wind. 
+We also use backwards elimination.  This method shows us to use the same variables as the all subsets regession method. 
+
+
+```{r split}
+
+# All Subsets Regression
+fitsubs = regsubsets(GDP ~., data = dataPostCollinearity[,-1])
+cbind(summary(fitsubs)$which, summary(fitsubs)$adjr2, summary(fitsubs)$bic, summary(fitsubs)$cp)
+summaryHH(fitsubs)
+
+
+# Adjusted R squared: largest value at model with Electricity, Fossil Fuels, Natural Gas, Solar, Wood
+# Same with smallest CP
+# 8 regressors, p = 8
+# Same with smallest BIC
+
+# Using Backwards Elimination:
+backsel = step(logFitThree, direction="backward")
+summary(backsel)
+variables = dplyr::select(dataPostCollinearity, State, Electricity, Solar, Waste, Wind, GDP)
+variableFit = lm( GDP ~., data = variables[,-1] )
+summary(variableFit)
+
+```
+
+
+
+##Regression Diagnostics:
+First we check the linearity assumptions by plotting scatterplots for each of the varaibles selected vs GDP. Each of the variables have a moderate to strong, positive linear relationship with GDP, with the exception of wind, which has a very weak relationship with GDP.
+Then we check the equal variance assumption, which is satisfied. We see the values scattered randomly around 0 within a horizontal band.
+Then we check the normality assumption.  The values in the QQ plot fall along the line satisfying this assumption.
+
+```{r} 
+plot(GDP ~., data = variables[,-1])
+#Strong Positive linear, wood is the exception 
+plot(variableFit$fitted.values, variableFit$residuals,ylab="residuals", xlab="fitted y", main="Residual plot")
+abline(0,0)
+
+qqnorm(variableFit$residuals)
+qqline(variableFit$residuals)
+
+#These are fine, log is better again
+
+```
+
+Next we plot the studentized residuals with the fitted values.
+
+```{r split2}
+
+di = rstandard(variableFit) # standardized 
+ri = rstudent(variableFit) # studentized residuals
+plot(variableFit$fitted.values, ri, main="Studentized residuals versus fitted values")
+abline(0,0)
+# There are two outliers above 2
+qqnorm(ri)
+qqline(ri)
+
+#The extremes are off and deviate from the line (remove outliers?)
+#heavy-tailed distirbution
+#Outliers make sense: Texas, CAlifornia, and New York are abnormally wealthier than other states
+
+#These are fine, log is better again
+
+plot(variableFit$fitted.values, di, main="Studentized residuals versus fitted values")
+abline(0,0)
+qqnorm(di)
+qqline(di)
+
+
+avPlots(variableFit)
+# No random scatter, all variables belong in mode;
+
+hi = hatvalues(variableFit)
+variables[which(hi > 3*mean(hi)),]
+# High leverage formula for small-medium dataset
+# Outliers are actually Texas, Louisiana, and California
+
+plot(hi, type="h", main="Plot of Leverage")
+abline(3*mean(hi),0, lty=2)
+
+
+```
+
+
+Are these outliers influential?
+
+
+
+```{r}
+x=dfbetas(variableFit)
+
+plot(abs(dfbetas(variableFit)[,1]), type="h")
+abline(1,0)
+#observation 5 and 9
+
+plot(abs(dfbetas(variableFit)[,2]), type="h")
+abline(1,0)
+#Observation 5 and 34
+
+plot(abs(dfbetas(variableFit)[,3]), type="h")
+abline(1,0)
+#Observation 5 and 34
+
+plot(abs(dfbetas(variableFit)[,4]), type="h")
+abline(1,0)
+#Observation 4,5, and 34
+
+plot(abs(dfbetas(variableFit)[,5]), type="h")
+abline(1,0)
+#Observation 9 and 34
+
+# Before, Texas, California, and NY were outliers. In this new model, variables removed and with the log fit, Wyoming is th e only outlier
+# Texas California and New York may have been outliers in terms of their fossil fuel or natural gas production
+
+dffits(variableFit)
+plot(abs(dffits(variableFit)), type="h")
+abline(1, 0, lty=2)
+ProjectData[which(abs(dffits(variableFit))>1),]
+# Arkansas is also influential
+# in previous test, Florida and New YOrk were claimed influential
+
+
+plot(cooks.distance(variableFit), type="h")
+abline(1, 0, lty=2)
+#California and New York
+
+summary(influence.measures(variableFit))
+#AZ, CA, FL, GA, LA, NY, TX
+
+```
+
+## Plots of all the regression diagnostics
+Plot of Residuals vs. Fitted -- the red line has a dip in it but it is fairly flat and close to the gray line at 0. 
+
+Normal QQ Plot of Standardized Residuals -- the points are fairly linear and fall alone the gray line.
+
+Scale-Location plot of sqrt(absolute value of standardizedresiduals) versus fitted values -- the red line is relatively flat
+
+Standardized residuals against leverages -- points are centered around 0 within a horizontal band, no points outside of the contour lines but a few close to the edges
+
+```{r}
+
+plot(variableFit)
+```
+
+##Outliers
+Next we test for outliers. California and New york are outliers here.  We check the QQ plot for the studentized residuals and see a very strong linear relationship indicating normality. Based on this, we should remove NY and CA. 
+
+```{r}
+outlierTest(variableFit)
+#California and New York
+
+# QQ Plot for Studentized Residuals
+qqPlot(variableFit, main="QQ Plot")
+
+
+# I think we should therefore remove New York and California
+```
+
+Then we check the influence plot, which creates a “bubble” plot of Studentized residuals versus hat values, with bubble sizes proportional to Cook’s distances.
+```{r}
+influencePlot(variableFit, main="Influence Plot")
+```
+
+We check the models without the different potential outliers.  Removing the outliers do not change the regression coefficients, but they do improve the R^2 values, which means without the outliers the models account for a higher percentage of variability, but the outliers did not change anything about the coefficient values. 
+
+```{r}
+summary(variableFit)
+summary(lm( GDP ~., data = variables[-50,-1]))
+summary(lm( GDP ~., data = variables[-1,-1]))
+summary(lm( GDP ~., data = variables[c(-1,-50),-1]))
+#R^2 is better without these outliers, but regression coefficients do not change
+
+
+```
